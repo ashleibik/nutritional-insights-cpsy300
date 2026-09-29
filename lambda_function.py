@@ -72,19 +72,22 @@ def process_nutritional_data_from_azurite(blob_name=BLOB_NAME):
     # 1. Read the CSV straight from Azurite Blob Storage
     blob = get_blob_service().get_blob_client(container=CONTAINER_NAME, blob=blob_name)
     data = blob.download_blob().readall()
-    df = pd.read_csv(io.BytesIO(data))
+    # Task 5 optimization: only read needed columns, smaller dtypes, category for diet type
+    df = pd.read_csv(
+        io.BytesIO(data),
+        usecols=["Diet_type"] + MACROS,
+        dtype={"Diet_type": "category", **{c: "float32" for c in MACROS}},
+    )
     log(f"Downloaded {len(data):,} bytes, {len(df):,} rows from Azurite")
 
     # 2. Light cleaning (same rules as data_analysis.py)
-    df.columns = [c.strip().replace(" (g)", "(g)") for c in df.columns]
-    df["Diet_type"] = df["Diet_type"].astype(str).str.strip().str.lower()
-    for col in MACROS:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df[MACROS] = df[MACROS].fillna(df[MACROS].mean(numeric_only=True))
+    clean = {c: str(c).strip().lower() for c in df["Diet_type"].cat.categories}
+    df["Diet_type"] = df["Diet_type"].map(clean).astype("category")
+    df[MACROS] = df[MACROS].fillna(df[MACROS].mean())
 
     # 3. Calculate average macros per diet type
-    avg = df.groupby("Diet_type")[MACROS].mean().round(2)
-    counts = df.groupby("Diet_type").size()
+    avg = df.groupby("Diet_type", observed=True)[MACROS].mean().astype("float64").round(2)
+    counts = df.groupby("Diet_type", observed=True).size()
 
     # 4. Save to the simulated NoSQL database (one JSON document per diet type,
     #    shaped like Cosmos DB documents with an id field)
