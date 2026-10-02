@@ -1,0 +1,53 @@
+name: CI/CD - Diet Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Run tests
+        run: pytest -v
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t diet-analysis:ci .
+
+      - name: Show image size
+        run: docker images diet-analysis
+
+      - name: Simulated deployment (run the container)
+        run: docker run --rm diet-analysis:ci
+
+      - name: Push to Docker Hub (main branch only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          docker tag diet-analysis:ci "$DOCKERHUB_USERNAME/diet-analysis:latest"
+          docker tag diet-analysis:ci "$DOCKERHUB_USERNAME/diet-analysis:${GITHUB_SHA::7}"
+          docker push "$DOCKERHUB_USERNAME/diet-analysis:latest"
+          docker push "$DOCKERHUB_USERNAME/diet-analysis:${GITHUB_SHA::7}"
