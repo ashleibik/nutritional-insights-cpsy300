@@ -7,4 +7,4 @@ services:
     # show up in ./output on your VM.
     
     volumes:
-      - ./output:/app/output
+      - ./outputs:/app/outputs
