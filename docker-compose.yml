@@ -1,0 +1,10 @@
+services:
+  diet-analysis:
+    build: .
+    image: diet-analysis:latest
+    container_name: diet-analysis
+    # Charts/results written to /app/output inside the container
+    # show up in ./output on your VM.
+    
+    volumes:
+      - ./outputs:/app/outputs
