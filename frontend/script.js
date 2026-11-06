@@ -1,5 +1,7 @@
 
-const API_URL =
+// Single source of truth for the live Azure Function endpoint.
+// Change this one line if the backend URL ever moves.
+const API_BASE_URL =
     "https://diet-insights-ahmed01.azurewebsites.net/api/insights";
 
 let barChart = null;
@@ -12,6 +14,7 @@ const refreshBtn = document.getElementById("refreshBtn");
 const insightsBtn = document.getElementById("insightsBtn");
 const loadingStatus = document.getElementById("loadingStatus");
 const executionTime = document.getElementById("executionTime");
+const processedAt = document.getElementById("processedAt");
 
 const dietNames = {
     all: "All Diets",
@@ -54,6 +57,16 @@ function getDietName(item) {
 function getNumber(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : 0;
+}
+
+function formatProcessedAt(value) {
+    if (!value) return null;
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime())
+        ? String(value)
+        : date.toLocaleString();
 }
 
 function destroyCharts() {
@@ -230,12 +243,15 @@ async function loadDashboard() {
 
     refreshBtn.disabled = true;
     insightsBtn.disabled = true;
-    loadingStatus.textContent = "Loading nutritional data...";
+    loadingStatus.classList.remove("status-error");
+    loadingStatus.textContent =
+        "Loading data... (first load can take up to 20s)";
     executionTime.textContent = "Execution Time: --";
+    processedAt.textContent = "Data last processed: --";
 
     try {
         const response = await fetch(
-            `${API_URL}?diet=${encodeURIComponent(selectedDiet)}`
+            `${API_BASE_URL}?diet=${encodeURIComponent(selectedDiet)}`
         );
 
         if (!response.ok) {
@@ -281,16 +297,31 @@ async function loadDashboard() {
                 ? `Execution Time: ${ms} ms`
                 : "Execution Time: Not available";
 
+        const processed = formatProcessedAt(data.metadata?.processed_at);
+
+        processedAt.textContent = processed
+            ? `Data last processed: ${processed}`
+            : "Data last processed: Not available";
+
         loadingStatus.textContent =
             diets.length > 0
                 ? "Data loaded successfully."
                 : "No data found for the selected diet.";
 
     } catch (error) {
-        console.error("Dashboard Error:", error);
+        console.error(
+            "Dashboard Error. If this is a network/fetch failure, it may " +
+            "be caused by CORS (the API must allow this page's origin) " +
+            "or the API being unreachable:",
+            error
+        );
 
+        loadingStatus.classList.add("status-error");
         loadingStatus.textContent =
-            `Failed to load data: ${error.message}`;
+            `Failed to load data: ${error.message}. Check the browser ` +
+            `console for details (this can be a CORS or network issue).`;
+
+        processedAt.textContent = "Data last processed: --";
 
         destroyCharts();
 
