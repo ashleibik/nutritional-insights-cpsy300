@@ -141,10 +141,16 @@ button:disabled {
 /* API status */
 #loadingStatus,
 #executionTime,
+#processedAt,
 .api-note {
     color: #555;
     font-size: 13px;
     margin-top: 12px;
+}
+
+#loadingStatus.status-error {
+    color: #b91c1c;
+    font-weight: 600;
 }
 
 /* Pagination */
