@@ -36,7 +36,9 @@ def load_data():
     )
     data = blob.download_blob().readall()
 
-    df = pd.read_csv(io.BytesIO(data), usecols=["Diet_type", "Recipe_name", "Cuisine_type"] + MACROS)
+    # Read every column so drop_duplicates() only removes rows that are fully
+    # identical, same as Phase 1 (data_analysis.py). 7,806 rows -> 7,801.
+    df = pd.read_csv(io.BytesIO(data))
     df["Diet_type"] = df["Diet_type"].astype(str).str.strip().str.lower()
     df["Cuisine_type"] = df["Cuisine_type"].astype(str).str.strip().str.lower()
     for col in MACROS:
